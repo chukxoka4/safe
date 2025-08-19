@@ -1,0 +1,143 @@
+/* Dark Theme Styling */
+body {
+    background-color: #181818; /* Truly dark background */
+    color: #dcdcdc; /* Light text color */
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+h1, h2 {
+    color: #e5e5e5;
+    text-align: center;
+}
+
+a {
+    color: #53b1e6; /* Links color */
+}
+
+input, button, select, textarea {
+    background-color: #40414f;
+    color: #dcdcdc;
+    border: 1px solid #565869;
+    border-radius: 5px;
+    padding: 10px;
+    font-size: 16px;
+}
+
+input::placeholder {
+    color: #8e8ea0;
+}
+
+button {
+    cursor: pointer;
+    border: none;
+}
+
+button:hover {
+    background-color: #565869;
+}
+
+button:active {
+    background-color: #6b6d7e;
+}
+
+button, #upload-button, #advanced-button, #ask-button {
+    margin-right: 16px;
+    margin-bottom: 16px;
+}
+
+#upload-button, #advanced-button {
+    margin-top: 10px;
+}
+
+/* Centering content */
+#upload-section, #input-section, #answer-section {
+    width: 80%;
+    max-width: 800px;
+    margin: 20px auto; /* Center horizontally */
+    padding: 30px; /* More padding for sections */
+    background-color: #181818; /* Match body background */
+    border: 1px solid #565869;
+    border-radius: 10px;
+}
+
+#upload-section h2, #input-section h2, #answer-section h2 {
+    margin-top: 0;
+}
+
+#progress-bar {
+    width: 100%;
+    background-color: #565869;
+    margin-top: 10px;
+    display: none;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+#progress-bar-fill {
+    height: 20px;
+    width: 0%;
+    background-color: #10a37f; /* Progress bar color */
+}
+
+#answer-section {
+    margin-top: 30px;
+    padding: 20px;
+    background-color: #181818;
+    border: 1px solid #565869;
+    border-radius: 10px;
+}
+
+#answer {
+    white-space: pre-wrap;
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+#question-input {
+    width: calc(100% - 120px); /* Adjust width considering button width */
+    margin-right: 10px;
+}
+
+#ask-button {
+    width: 100px;
+    padding: 10px;
+}
+
+#upload-form, #question-form {
+    gap: 20px; /* More space between form elements */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+#upload-form input[type="file"] {
+    margin-bottom: 10px;
+}
+
+#upload-button {
+    padding: 10px 20px;
+    margin-top: 10px;
+}
+
+form {
+    width: 100%;
+}
+
+@media (max-width: 600px) {
+    #question-input {
+        width: 100%;
+        margin-right: 0;
+        margin-bottom: 10px;
+    }
+
+    #ask-button {
+        width: 100%;
+    }
+
+    #question-form {
+        flex-direction: column;
+    }
+}

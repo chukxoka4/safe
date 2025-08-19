@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>AI-Enhanced Revision System</title>
+    <!-- Link to External CSS -->
+    <link rel="stylesheet" type="text/css" href="static/styles.css">
+</head>
+
+<body>
+
+    <h1>AI-Enhanced Revision System</h1>
+
+    <!-- Upload Section -->
+    <div id="upload-section">
+        <h2>Upload Course Materials (PDF only)</h2>
+        <form id="upload-form" enctype="multipart/form-data" method="post">
+            <input type="file" id="file-upload" name="file" accept="application/pdf" required>
+            <br><br>
+            <button type="submit" id="upload-button">Upload and Process</button>
+            <!-- Advanced Process Button -->
+            <button type="button" id="advanced-button">Advanced Process</button>
+        </form>
+        <!-- Progress Bar -->
+        <div id="progress-bar">
+            <div id="progress-bar-fill"></div>
+        </div>
+    </div>
+
+    <!-- Input Section -->
+    <div id="input-section">
+        <h2>Ask a Question</h2>
+        <form id="question-form" method="post">
+            <input type="text" id="question-input" name="question" placeholder="Enter your question here" required
+                style="width: 80%;">
+            <select id="processing-mode">
+                <option value="simple">Simple</option>
+                <option value="advanced">Advanced</option>
+            </select>
+            <button type="submit" id="ask-button">Get Answer</button>
+        </form>
+    </div>
+
+    <!-- Answer Section -->
+    <div id="answer-section">
+        <h2>Answer</h2>
+        <div id="answer">
+            <!-- The AI-generated answer will appear here -->
+        </div>
+    </div>
+
+    <!-- Link to External JavaScript -->
+    <script src="static/script_.js"></script>
+
+</body>
+
+</html>

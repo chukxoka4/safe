@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment & secrets
+.env
+
+# Binary data and indexes
+*.pkl
+*.index
+
+# Uploaded and generated files
+uploads/
+tests/sample_files/
+tests/performance/report_*.html
+
+# Test cache
+.pytest_cache/
+
+# VSCode settings (optional)
+.vscode/
+
+# Log files
+*.log
+
+# FAISS index files
+faiss_index.index
+faiss_index_advanced.index
+id_to_text.pkl
+id_to_text_advanced.pkl
+
+# Other
+*.DS_Store
