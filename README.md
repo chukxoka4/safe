@@ -33,10 +33,11 @@ Minimal instructions to set up, run, test, and safely publish this Flask project
    - Do NOT commit `.env`
 
 5. Run the app (development):
-   export FLASK_APP=app.py
-   flask run
-   or
+   source .venv/bin/activate   # if not already activated
    python app.py
+   Then open http://127.0.0.1:5000 in your browser.
+
+   Alternatively: export FLASK_APP=app.py && flask run
 
 ## Running tests
 - Unit/integration:

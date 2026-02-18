@@ -29,6 +29,12 @@ input::placeholder {
     color: #8e8ea0;
 }
 
+.document-context-status {
+    color: #8e8ea0;
+    font-size: 0.9em;
+    margin: 4px 0 8px 0;
+}
+
 button {
     cursor: pointer;
     border: none;

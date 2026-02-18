@@ -16,6 +16,114 @@ advancedButton.addEventListener('click', function(event) {
     handleFileUpload('/advanced_upload'); // Use the new /advanced_upload endpoint
 });
 
+// Build a recognizable label: custom name > filename > auto title
+function docLabel(doc) {
+  if (doc.display_name) return doc.display_name;
+  if (doc.filename && doc.filename !== 'unknown') return doc.filename;
+  return doc.title || doc.id;
+}
+
+function setDocumentContextReady(ready, message) {
+  const statusEl = document.getElementById('document-context-status');
+  const selectEl = document.getElementById('document-select');
+  if (!statusEl || !selectEl) return;
+  if (ready) {
+    statusEl.textContent = '';
+    statusEl.style.display = 'none';
+    selectEl.style.display = '';
+  } else {
+    statusEl.textContent = message || 'Preparing document context…';
+    statusEl.style.display = '';
+    selectEl.style.display = 'none';
+  }
+}
+
+function refreshDocumentDropdown() {
+  setDocumentContextReady(false, 'Loading document list…');
+  fetch('/processed_documents')
+    .then(res => res.json())
+    .then(docs => {
+      window._lastDocList = docs;
+      const select = document.getElementById('document-select');
+      const currentValue = select.value;
+      select.innerHTML = '';
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = '— Select document (context for your question) —';
+      select.appendChild(placeholder);
+      docs.forEach(doc => {
+        const option = document.createElement('option');
+        option.value = doc.id;
+        option.textContent = `${docLabel(doc)} (${doc.date}) [${doc.processing}]`;
+        select.appendChild(option);
+      });
+      if (currentValue) select.value = currentValue;
+      updateDisplayNameField();
+      setDocumentContextReady(true);
+    })
+    .catch(function() {
+      setDocumentContextReady(false, 'Could not load documents. Retrying…');
+    });
+}
+
+function updateDisplayNameField() {
+  const select = document.getElementById('document-select');
+  const input = document.getElementById('document-display-name');
+  const id = select.value;
+  if (!id) { input.value = ''; input.placeholder = 'Select a document first'; return; }
+  input.placeholder = 'e.g. Course Notes Unit 1';
+  const doc = (window._lastDocList || []).find(d => d.id === id);
+  input.value = doc ? (doc.display_name || '') : '';
+}
+
+// Initial load (shows "Preparing document context…" until server is ready; backfill runs at server startup)
+setDocumentContextReady(false, 'Preparing document context…');
+fetch('/processed_documents')
+  .then(res => res.json())
+  .then(docs => {
+    window._lastDocList = docs;
+    const select = document.getElementById('document-select');
+    select.innerHTML = '';
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = '— Select document (context for your question) —';
+    select.appendChild(placeholder);
+    docs.forEach(doc => {
+      const option = document.createElement('option');
+      option.value = doc.id;
+      option.textContent = `${docLabel(doc)} (${doc.date}) [${doc.processing}]`;
+      select.appendChild(option);
+    });
+    select.addEventListener('change', updateDisplayNameField);
+    updateDisplayNameField();
+    setDocumentContextReady(true);
+  })
+  .catch(function() {
+    setDocumentContextReady(false, 'Could not load documents. Is the server running?');
+  });
+
+// Save display name for selected document
+document.getElementById('save-display-name').addEventListener('click', function() {
+  const documentId = document.getElementById('document-select').value;
+  const displayName = document.getElementById('document-display-name').value.trim();
+  if (!documentId) { alert('Select a document first.'); return; }
+  fetch('/update_document', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ document_id: documentId, display_name: displayName || null })
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.error) { alert(data.error); return; }
+      if (window._lastDocList) {
+        const doc = window._lastDocList.find(d => d.id === documentId);
+        if (doc) doc.display_name = displayName || null;
+      }
+      refreshDocumentDropdown();
+      document.getElementById('document-display-name').value = displayName;
+    })
+    .catch(() => alert('Failed to save name.'));
+});
 
 // Function to handle file uploads
 function handleFileUpload(endpoint) {
@@ -49,8 +157,7 @@ function handleFileUpload(endpoint) {
                 const response = JSON.parse(xhr.responseText);
                 if (response.message) {
                     alert(response.message);
-                    // Optionally clear the file input
-                    //fileInput.value = '';
+                    refreshDocumentDropdown(); // so new document appears in context dropdown
                 } else {
                     alert('An error occurred while processing the file.');
                 }
@@ -93,16 +200,15 @@ document.getElementById('question-form').addEventListener('submit', function(e) 
     e.preventDefault();
     const question = document.getElementById('question-input').value;
     const processingMode = document.getElementById('processing-mode').value;
+    const documentId = document.getElementById('document-select').value;
 
     fetch('/ask', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ question, processing_mode: processingMode })
-    })
-    .then(response => response.json())
-    .then(data => {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question, processing_mode: processingMode, document_id: documentId })
+  })
+  .then(response => response.json())
+  .then(data => {
         if (data.answer) {
             displayAnswer(data.answer);
         } else if (data.error) {

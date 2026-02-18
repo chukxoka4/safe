@@ -31,6 +31,16 @@
     <div id="input-section">
         <h2>Ask a Question</h2>
         <form id="question-form" method="post">
+            <label for="document-select">Context (which document to ask from):</label>
+            <p id="document-context-status" class="document-context-status" aria-live="polite">Preparing document context…</p>
+            <select id="document-select" name="document_id" style="display: none;">
+              <!-- Options will be populated by JS -->
+            </select>
+            <div id="document-label-area" style="margin-top: 6px;">
+              <label for="document-display-name">Display name (optional, so you recognize this document):</label>
+              <input type="text" id="document-display-name" placeholder="e.g. Course Notes Unit 1">
+              <button type="button" id="save-display-name">Save name</button>
+            </div>
             <input type="text" id="question-input" name="question" placeholder="Enter your question here" required
                 style="width: 80%;">
             <select id="processing-mode">

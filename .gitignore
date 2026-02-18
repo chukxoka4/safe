@@ -30,6 +30,11 @@ faiss_index.index
 faiss_index_advanced.index
 id_to_text.pkl
 id_to_text_advanced.pkl
+id_to_document_id.pkl
+id_to_document_id_advanced.pkl
+
+# Runtime document metadata (may contain filenames; do not commit)
+processed_documents.json
 
 # Other
 *.DS_Store

@@ -1,5 +1,6 @@
 # routes/main_routes.py
 
+import datetime
 from flask import render_template, request, jsonify
 import os
 from werkzeug.utils import secure_filename
@@ -16,6 +17,9 @@ OpenAI = promptlayer_client.openai.OpenAI
 client = OpenAI()
 
 import re
+import json
+import sys
+import traceback
 
 SAFE_FILENAME_REGEX = re.compile(r'^[\w\-. ]+$')  # Letters, numbers, dash, underscore, dot, space
 
@@ -40,31 +44,70 @@ class MainRoutes:
         self.app = app
         self.processed_files = set()
         self.processed_files_advanced = set()
+        self.processed_documents = {}
+        self.metadata_file = 'processed_documents.json'
+
+        # Initialize or load id_to_text mapping FIRST
+        if os.path.exists('id_to_text.pkl'):
+            try:
+                with open('id_to_text.pkl', 'rb') as f:
+                    self.id_to_text = pickle.load(f)
+            except Exception as e:
+                print('Error loading id_to_text.pkl:', e)
+                self.id_to_text = {}
+        else:
+            self.id_to_text = {}
+
+        if os.path.exists('id_to_text_advanced.pkl'):
+            try:
+                with open('id_to_text_advanced.pkl', 'rb') as f:
+                    self.id_to_text_advanced = pickle.load(f)
+            except Exception as e:
+                print('Error loading id_to_text_advanced.pkl:', e)
+                self.id_to_text_advanced = {}
+        else:
+            self.id_to_text_advanced = {}
+
+        self.vector_ids = list(self.id_to_text.keys())
+        self.vector_ids_advanced = list(self.id_to_text_advanced.keys())
+
+        # Vector ID -> document_id for contextual retrieval (which chunks belong to which doc)
+        if os.path.exists('id_to_document_id.pkl'):
+            try:
+                with open('id_to_document_id.pkl', 'rb') as f:
+                    self.id_to_document_id = pickle.load(f)
+            except Exception as e:
+                print('Error loading id_to_document_id.pkl:', e)
+                self.id_to_document_id = {}
+        else:
+            self.id_to_document_id = {}
+        if os.path.exists('id_to_document_id_advanced.pkl'):
+            try:
+                with open('id_to_document_id_advanced.pkl', 'rb') as f:
+                    self.id_to_document_id_advanced = pickle.load(f)
+            except Exception as e:
+                print('Error loading id_to_document_id_advanced.pkl:', e)
+                self.id_to_document_id_advanced = {}
+        else:
+            self.id_to_document_id_advanced = {}
+
+        # Now safe to call load_processed_documents
+        self.load_processed_documents()
+
+        # One-time backfill: tie existing vectors to documents (for already-processed docs)
+        self._backfill_id_to_document_id_if_needed()
 
         # Initialize or load FAISS index
         if os.path.exists('faiss_index.index'):
             try:
                 self.faiss_index = faiss.read_index('faiss_index.index')
             except Exception as e:
-                print('Error')
+                print('Error loading faiss_index.index:', e)
                 self.faiss_index = None
         else:
             self.faiss_index = None
 
-        # Initialize or load id_to_text mapping
-        if os.path.exists('id_to_text.pkl'):
-            try:
-                with open('id_to_text.pkl', 'rb') as f:
-                    self.id_to_text = pickle.load(f)
-            except Exception as e:
-                print('Error')
-                self.id_to_text = {}
-        else:
-            self.id_to_text = {}
-
-        self.vector_ids = list(self.id_to_text.keys())
-
-         # Advanced embeddings index
+        # Advanced embeddings index
         if os.path.exists('faiss_index_advanced.index'):
             try:
                 self.faiss_index_advanced = faiss.read_index('faiss_index_advanced.index')
@@ -74,15 +117,111 @@ class MainRoutes:
         else:
             self.faiss_index_advanced = None
 
-        # Advanced embeddings mapping
-        if os.path.exists('id_to_text_advanced.pkl'):
-            with open('id_to_text_advanced.pkl', 'rb') as f:
-                self.id_to_text_advanced = pickle.load(f)
+    def load_processed_documents(self):
+        if os.path.exists(self.metadata_file):
+            try:
+                with open(self.metadata_file, 'r') as f:
+                    self.processed_documents = json.load(f)
+            except Exception as e:
+                print(f"Error loading processed_documents.json: {e}")
         else:
-            self.id_to_text_advanced = {}
+            # Backfill from FAISS mappings
+            self.processed_documents = self.backfill_from_mappings()
 
-        self.vector_ids_advanced = list(self.id_to_text_advanced.keys())
+    def _backfill_id_to_document_id_if_needed(self):
+        """
+        One-time backfill for already-processed documents: assign each vector to a document_id
+        using the same heuristic as get_document_chunks, then save. So existing docs get
+        their chunks tied together and context selection works without re-uploading.
+        Only runs when the mapping file does not exist yet (first run after deploy).
+        Runs at startup (batch); watch server logs for "Backfill..." messages.
+        """
+        need_backfill = any(
+            id_to_text and not os.path.exists(pkl)
+            for _, id_to_text, _, pkl in [
+                (False, self.id_to_text, self.id_to_document_id, 'id_to_document_id.pkl'),
+                (True, self.id_to_text_advanced, self.id_to_document_id_advanced, 'id_to_document_id_advanced.pkl'),
+            ]
+        )
+        if need_backfill:
+            print("[Backfill] Linking existing documents to chunks (one-time, at startup). Please wait...")
+        total_updated = 0
+        for advanced, id_to_text, id_to_doc, pkl_file in [
+            (False, self.id_to_text, self.id_to_document_id, 'id_to_document_id.pkl'),
+            (True, self.id_to_text_advanced, self.id_to_document_id_advanced, 'id_to_document_id_advanced.pkl'),
+        ]:
+            if not id_to_text or os.path.exists(pkl_file):
+                continue
+            processing = 'advanced' if advanced else 'simple'
+            docs_for_mode = [d for d in self.processed_documents.values() if d.get('processing') == processing]
+            if not docs_for_mode:
+                continue
+            updated = 0
+            for doc in docs_for_mode:
+                document_id = doc.get('id')
+                title = doc.get('title') or ''
+                filename = doc.get('filename') or ''
+                filename_stem = os.path.splitext(filename)[0] if filename and filename != 'unknown' else ''
+                title_prefix = (document_id or '').split('-')[0]
+                for idx, text in id_to_text.items():
+                    if not text:
+                        continue
+                    if title and title in text:
+                        id_to_doc[idx] = document_id
+                        updated += 1
+                    elif title_prefix and title_prefix in text:
+                        id_to_doc[idx] = document_id
+                        updated += 1
+                    elif filename_stem and filename_stem in text:
+                        id_to_doc[idx] = document_id
+                        updated += 1
+            if updated:
+                try:
+                    with open(pkl_file, 'wb') as f:
+                        pickle.dump(id_to_doc, f)
+                    print(f"[Backfill] {processing}: linked {updated} chunk(s) to documents -> {pkl_file}")
+                    total_updated += updated
+                except Exception as e:
+                    print(f"[Backfill] Error saving {pkl_file}: {e}")
+        if need_backfill:
+            print(f"[Backfill] Done. Total links: {total_updated}. You can use the app now.")
 
+    def save_processed_documents(self):
+        try:
+            with open(self.metadata_file, 'w') as f:
+                json.dump(self.processed_documents, f)
+        except Exception as e:
+            print(f"Error saving processed_documents.json: {e}")
+
+    def backfill_from_mappings(self):
+        docs = {}
+        # Simple
+        for idx, text in self.id_to_text.items():
+            title = text[:40] if text else "unknown"
+            date_str = "unknown"
+            processing = "simple"
+            doc_id = f"{title}-{processing}-{date_str}"
+            docs[doc_id] = {
+                "id": doc_id,
+                "title": title,
+                "date": date_str,
+                "processing": processing,
+                "filename": "unknown"
+            }
+        # Advanced
+        for idx, text in self.id_to_text_advanced.items():
+            title = text[:40] if text else "unknown"
+            date_str = "unknown"
+            processing = "advanced"
+            doc_id = f"{title}-{processing}-{date_str}"
+            docs[doc_id] = {
+                "id": doc_id,
+                "title": title,
+                "date": date_str,
+                "processing": processing,
+                "filename": "unknown"
+            }
+        return docs
 
     def index(self):
         return render_template('index.html')
@@ -106,11 +245,23 @@ class MainRoutes:
             os.makedirs(upload_folder)
         file_path = os.path.join(upload_folder, filename)
         file.save(file_path)
+        # Extract title (from filename or PDF)
+        title = self.extract_title(file_path, filename)
+        date_str = datetime.datetime.now().strftime("%Y-%m-%d")
+        processing = "simple"
+        document_id = f"{title}-{processing}-{date_str}"
+        # Save metadata
+        self.processed_documents[document_id] = {
+            "id": document_id,
+            "title": title,
+            "date": date_str,
+            "processing": processing,
+            "filename": filename
+        }
+        self.save_processed_documents()
         # Process the file (e.g., extract text, generate embeddings)
-        # Call summarize_document here
         summary = self.summarize_document(file_path, is_pdf=True)
         self.summary = summary  # Store the summary
-        # Store the summary or embeddings as needed
 
         # Check if file was already processed
         if summary == "File already processed":
@@ -124,14 +275,13 @@ class MainRoutes:
         try:
             embedding = self.get_embedding(summary)
             print('Embedding genenerated')
-            self.save_embedding(embedding, summary)
+            self.save_embedding(embedding, summary, document_id=document_id)
             print('Embedding saved')
         except Exception as e:
             print(f"Error during embedding or saving: {e}")
             return jsonify({'error': f'Internal server error: {str(e)}'}), 500
-        # For example, save summary to a file or database
-        # return 'File successfully uploaded and processed', 200
         return jsonify({'message': 'File successfully uploaded and processed'}), 200
+
     def advanced_upload(self):
         if 'file' not in request.files:
             return jsonify({'error': 'No file part'}), 400
@@ -147,18 +297,36 @@ class MainRoutes:
             os.makedirs(upload_folder)
         file_path = os.path.join(upload_folder, filename)
         file.save(file_path)
+        # Extract title (from filename or PDF)
+        title = self.extract_title(file_path, filename)
+        date_str = datetime.datetime.now().strftime("%Y-%m-%d")
+        processing = "advanced"
+        document_id = f"{title}-{processing}-{date_str}"
+        # Save metadata
+        self.processed_documents[document_id] = {
+            "id": document_id,
+            "title": title,
+            "date": date_str,
+            "processing": processing,
+            "filename": filename
+        }
+        self.save_processed_documents()
         # Process the document using advanced processing
-        self.summarize_document(file_path, is_pdf=True, advanced=True)
+        self.summarize_document(file_path, is_pdf=True, advanced=True, document_id=document_id)
         return jsonify({'message': 'File successfully uploaded and processed with advanced processing'}), 200
+
     def ask(self):
         try:
             data = request.get_json()
+            document_id = data.get('document_id')
             question = data.get('question', '')
             processing_mode = data.get('processing_mode', 'simple')
             print('Now asking...')
 
             if not question:
                 return jsonify({'error': 'No question provided'}), 400
+            if not (document_id and str(document_id).strip()):
+                return jsonify({'error': 'Please select a document (context) for your question.'}), 400
 
             # Generate embedding for the question
             question_embedding = self.get_embedding(question)
@@ -186,13 +354,26 @@ class MainRoutes:
                 return jsonify({'error': 'The knowledge base is empty for the selected processing mode. Please upload and process a document first.'}), 400
             print('Similar Embedding Found')
 
-            # Search for the most similar embeddings
-            top_k = 5
-            D, I = index.search(np.array([question_embedding], dtype='float32'), top_k)
-            print('Similar Embedding Searching')
+            # Get chunk IDs and texts for the selected document only
+            chunk_pairs = self.get_document_chunks(document_id, processing_mode)
+            chunk_ids = [idx for idx, _ in chunk_pairs]
+            if not chunk_ids:
+                return jsonify({'error': 'No chunks found for the selected document.'}), 400
 
-            # Retrieve the corresponding texts
-            contexts = [id_to_text[idx] for idx in I[0] if idx != -1]
+            chunk_id_set = set(chunk_ids)
+            top_k_retrieve = 5
+            # Search more candidates then filter to this document's chunks (FAISS has no "search in subset")
+            search_k = min(100, index.ntotal)
+            D, I = index.search(np.array([question_embedding], dtype='float32'), search_k)
+            # Keep only results that belong to the selected document
+            I_filtered = [idx for idx in I[0] if idx != -1 and idx in chunk_id_set]
+            # Take top 5 by similarity (already ordered by D)
+            if I_filtered:
+                contexts = [id_to_text[idx] for idx in I_filtered[:top_k_retrieve]]
+            else:
+                # No hits in top search_k from this doc (rare); use doc's chunks in order
+                contexts = [text for _, text in chunk_pairs[:top_k_retrieve]]
+            print('Similar Embedding Searching (context filtered to selected document)')
 
             # Construct the prompt
             prompt = self.construct_prompt(question, contexts)
@@ -205,8 +386,17 @@ class MainRoutes:
             return jsonify({'answer': answer}), 200
 
         except Exception as e:
-            print(f"Error in ask: {e}")
-            return jsonify({'error': str(e)}), 500
+            err_msg = str(e)
+            tb = traceback.format_exc()
+            # Unmissable log block so you see the real error in the terminal
+            print("\n" + "=" * 60, file=sys.stderr)
+            print("POST /ask FAILED (500)", file=sys.stderr)
+            print("=" * 60, file=sys.stderr)
+            print(f"Error: {err_msg}", file=sys.stderr)
+            print("\nFull traceback:", file=sys.stderr)
+            print(tb, file=sys.stderr)
+            print("=" * 60 + "\n", file=sys.stderr)
+            return jsonify({'error': err_msg}), 500
 
 
     def allowed_file(self, filename):
@@ -214,12 +404,14 @@ class MainRoutes:
 
     # Utility Functions
 
-    def summarize_document(self, file_path, is_pdf=False, advanced=False):
+    def summarize_document(self, file_path, is_pdf=False, advanced=False, document_id=None):
         """
         Generates a summary of a text or PDF document.
         Args:
             file_path (str): Path to the document.
             is_pdf (bool, optional): Flag to indicate if the document is a PDF. Defaults to False.
+            advanced (bool): If True, chunk and embed full text; else summarize and embed summary.
+            document_id (str|None): Document ID to tie chunks/summary to (for context retrieval).
         Returns:
             str: Summary of the document.
         """
@@ -234,7 +426,7 @@ class MainRoutes:
             chunks = self.split_text_into_chunks(content)
             for chunk in chunks:
                 embedding = self.get_embedding(chunk)
-                self.save_embedding(embedding, chunk, advanced=True)
+                self.save_embedding(embedding, chunk, advanced=True, document_id=document_id)
                 print('Advanced Save Just Happened')
         
         else:
@@ -425,14 +617,17 @@ class MainRoutes:
         index.add_with_ids(embeddings, np.array(ids))
         return index
     
-    def save_embedding(self, embedding, text, advanced=False):
+    def save_embedding(self, embedding, text, advanced=False, document_id=None):
         try:
             """
             Saves the embedding and associated text into the FAISS index.
-            
+            Optionally ties this vector to a document_id for contextual retrieval.
+
             Args:
                 embedding (np.ndarray): The embedding vector.
                 text (str): The text corresponding to the embedding.
+                advanced (bool): Use advanced index/mappings.
+                document_id (str|None): Document this chunk/summary belongs to (for context filtering).
             """
             if advanced:
                 # Use separate index and mappings for advanced processing
@@ -446,8 +641,10 @@ class MainRoutes:
                 index = self.faiss_index_advanced
                 vector_ids = self.vector_ids_advanced
                 id_to_text = self.id_to_text_advanced
+                id_to_doc = self.id_to_document_id_advanced
                 index_file = 'faiss_index_advanced.index'
                 mapping_file = 'id_to_text_advanced.pkl'
+                doc_mapping_file = 'id_to_document_id_advanced.pkl'
             else:
                 if self.faiss_index is None:
                     # Initialize the index if it doesn't exist
@@ -459,30 +656,62 @@ class MainRoutes:
                 index = self.faiss_index
                 vector_ids = self.vector_ids
                 id_to_text = self.id_to_text
+                id_to_doc = self.id_to_document_id
                 index_file = 'faiss_index.index'
                 mapping_file = 'id_to_text.pkl'
+                doc_mapping_file = 'id_to_document_id.pkl'
 
             # Generate a unique ID for the embedding
-            vector_id = len(vector_ids)              # Use the correct variable
-            vector_ids.append(vector_id)             # Use the correct variable
+            vector_id = len(vector_ids)
+            vector_ids.append(vector_id)
 
             # Add the embedding to the index
             embedding = np.array([embedding], dtype='float32')
-            index.add_with_ids(embedding, np.array([vector_id], dtype='int64'))  # Use the correct variable
-
-            print(f"Added embedding with ID {vector_id} to {'advanced' if advanced else 'simple'} FAISS index.")
+            index.add_with_ids(embedding, np.array([vector_id], dtype='int64'))
 
             # Store the text with the corresponding ID
-            id_to_text[vector_id] = text             # Use the correct variable
+            id_to_text[vector_id] = text
 
-            # Save the index and mapping
+            # Tie this vector to the document for context filtering
+            if document_id is not None:
+                id_to_doc[vector_id] = document_id
+
+            # Save the index and mappings
             faiss.write_index(index, index_file)
-            print(f"Saved {'advanced' if advanced else 'simple'} FAISS index to {index_file}.")
             with open(mapping_file, 'wb') as f:
                 pickle.dump(id_to_text, f)
-            print(f"Saved {'advanced' if advanced else 'simple'} id_to_text mapping to {mapping_file}.")
+            if document_id is not None:
+                with open(doc_mapping_file, 'wb') as f:
+                    pickle.dump(id_to_doc, f)
+            print(f"Added embedding with ID {vector_id} to {'advanced' if advanced else 'simple'} FAISS index."
+                  + (f" document_id={document_id}" if document_id else ""))
         except Exception as e:
             print(f"Error saving embedding or index: {e}")
+
+    def get_processed_documents(self):
+        # Return a list of dicts: [{id, title, date, processing, filename, display_name?}]
+        out = []
+        for doc in self.processed_documents.values():
+            d = dict(doc)
+            d.setdefault('display_name', None)  # optional user-facing label
+            out.append(d)
+        return jsonify(out)
+
+    def update_document(self):
+        """Update display_name (or title) for a document so users can set a recognizable label."""
+        try:
+            data = request.get_json() or {}
+            document_id = data.get('document_id')
+            display_name = data.get('display_name', '').strip() or None
+            if not document_id:
+                return jsonify({'error': 'document_id required'}), 400
+            if document_id not in self.processed_documents:
+                return jsonify({'error': 'Document not found'}), 404
+            self.processed_documents[document_id]['display_name'] = display_name
+            self.save_processed_documents()
+            return jsonify(self.processed_documents[document_id]), 200
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 
     
     def construct_prompt(self, question, contexts):
@@ -568,3 +797,57 @@ class MainRoutes:
         else:
             print(f"id_to_text mapping file {mapping_file} does not exist.")
             return {}
+        
+    def extract_title(self, file_path, filename):
+        # Try to extract from PDF, fallback to filename (without extension)
+        try:
+            reader = PdfReader(file_path)
+            first_page = reader.pages[0]
+            text = first_page.extract_text()
+            if text:
+                # Use first non-empty line as title
+                for line in text.splitlines():
+                    if line.strip():
+                        return line.strip()
+        except Exception:
+            pass
+        # Fallback: filename without extension
+        return os.path.splitext(filename)[0]
+    
+    def get_document_chunks(self, document_id, processing_mode):
+        """
+        Retrieve all chunk IDs and texts for a given document_id and processing mode.
+        Uses stored id_to_document_id when available; falls back to title heuristic for legacy data.
+        Returns a list of (chunk_id, chunk_text).
+        """
+        if processing_mode == "advanced":
+            id_to_text = self.id_to_text_advanced
+            id_to_doc = self.id_to_document_id_advanced
+        else:
+            id_to_text = self.id_to_text
+            id_to_doc = self.id_to_document_id
+
+        # Prefer explicit vector -> document_id mapping (set for new uploads)
+        if id_to_doc:
+            chunk_ids = [idx for idx, doc_id in id_to_doc.items() if doc_id == document_id]
+            if chunk_ids:
+                return [(idx, id_to_text[idx]) for idx in chunk_ids if idx in id_to_text]
+        # Fallback: heuristic for legacy data (no id_to_document_id or doc not in mapping)
+        doc_meta = self.processed_documents.get(document_id)
+        if not doc_meta:
+            return []
+        title = doc_meta.get("title") or ""
+        filename = doc_meta.get("filename") or ""
+        filename_stem = os.path.splitext(filename)[0] if filename and filename != "unknown" else ""
+        title_prefix = (document_id or "").split("-")[0]
+        matched_chunks = []
+        for idx, text in id_to_text.items():
+            if not text:
+                continue
+            if title and title in text:
+                matched_chunks.append((idx, text))
+            elif title_prefix and title_prefix in text:
+                matched_chunks.append((idx, text))
+            elif filename_stem and filename_stem in text:
+                matched_chunks.append((idx, text))
+        return matched_chunks

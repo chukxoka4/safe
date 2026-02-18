@@ -34,6 +34,11 @@ class FlaskApp:
         # Advanced Processing Route
         self.app.add_url_rule('/advanced_upload', 'advanced_upload', main_routes.advanced_upload, methods=['POST'])
 
+        # Add processed documents route
+        self.app.add_url_rule('/processed_documents', 'processed_documents', main_routes.get_processed_documents, methods=['GET'])
+        # Update document display name (for recognizable labels in dropdown)
+        self.app.add_url_rule('/update_document', 'update_document', main_routes.update_document, methods=['POST'])
+
     
     def run(self):
         self.app.run(debug=True)
@@ -41,3 +46,6 @@ class FlaskApp:
 if __name__ == '__main__':
     app_instance = FlaskApp()
     app_instance.run()
+else:
+    # This makes it discoverable by `flask run`
+    app = FlaskApp().app
