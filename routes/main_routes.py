@@ -328,6 +328,14 @@ class MainRoutes:
             if not (document_id and str(document_id).strip()):
                 return jsonify({'error': 'Please select a document (context) for your question.'}), 400
 
+            # Document and answering method must match (safety check if frontend is bypassed)
+            doc_meta = self.processed_documents.get(document_id)
+            if doc_meta and doc_meta.get('processing') != processing_mode:
+                return jsonify({
+                    'error': f"This document was processed with {doc_meta['processing'].title()}. "
+                             f"Use the {doc_meta['processing'].title()} answering method (it is set automatically when you select the document)."
+                }), 400
+
             # Generate embedding for the question
             question_embedding = self.get_embedding(question)
             print('Question Embedding Generated')

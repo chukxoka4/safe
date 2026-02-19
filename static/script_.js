@@ -59,6 +59,7 @@ function refreshDocumentDropdown() {
       });
       if (currentValue) select.value = currentValue;
       updateDisplayNameField();
+      syncProcessingModeToDocument();
       setDocumentContextReady(true);
     })
     .catch(function() {
@@ -74,6 +75,21 @@ function updateDisplayNameField() {
   input.placeholder = 'e.g. Course Notes Unit 1';
   const doc = (window._lastDocList || []).find(d => d.id === id);
   input.value = doc ? (doc.display_name || '') : '';
+}
+
+// Keep answering method in sync with selected document (simple doc → Simple, advanced doc → Advanced).
+// Dropdown is read-only when a document is selected so it always matches.
+function syncProcessingModeToDocument() {
+  const select = document.getElementById('document-select');
+  const modeSelect = document.getElementById('processing-mode');
+  if (!modeSelect) return;
+  const id = select.value;
+  if (!id) { modeSelect.value = 'simple'; modeSelect.disabled = true; return; }
+  const doc = (window._lastDocList || []).find(d => d.id === id);
+  if (doc && doc.processing) {
+    modeSelect.value = doc.processing;
+    modeSelect.disabled = true;  // read-only: must match document, no mismatch possible
+  }
 }
 
 // Initial load (shows "Preparing document context…" until server is ready; backfill runs at server startup)
@@ -94,8 +110,12 @@ fetch('/processed_documents')
       option.textContent = `${docLabel(doc)} (${doc.date}) [${doc.processing}]`;
       select.appendChild(option);
     });
-    select.addEventListener('change', updateDisplayNameField);
+    select.addEventListener('change', function() {
+      updateDisplayNameField();
+      syncProcessingModeToDocument();
+    });
     updateDisplayNameField();
+    syncProcessingModeToDocument();
     setDocumentContextReady(true);
   })
   .catch(function() {
@@ -181,43 +201,50 @@ function handleFileUpload(endpoint) {
     }
 }
 
-// Handle question submission and display answer
-function displayAnswer(answerText) {
+// Handle question submission and display answer. onComplete() runs when typewriter finishes.
+function displayAnswer(answerText, onComplete) {
     const answerDiv = document.getElementById('answer');
-    answerDiv.innerHTML = ''; // Clear previous answer
+    answerDiv.innerHTML = '';
     let i = 0;
     function typeWriter() {
         if (i < answerText.length) {
             answerDiv.innerHTML += answerText.charAt(i);
             i++;
-            setTimeout(typeWriter, 20); // Adjust speed here
+            setTimeout(typeWriter, 20);
+        } else {
+            if (typeof onComplete === 'function') onComplete();
         }
     }
     typeWriter();
 }
 
+function setAskBusy(busy) {
+    var btn = document.getElementById('ask-button');
+    var loading = document.getElementById('ask-loading');
+    if (!btn || !loading) return;
+    btn.disabled = !!busy;
+    loading.style.display = busy ? 'inline' : 'none';
+}
+
 document.getElementById('question-form').addEventListener('submit', function(e) {
     e.preventDefault();
-    const question = document.getElementById('question-input').value;
-    const processingMode = document.getElementById('processing-mode').value;
-    const documentId = document.getElementById('document-select').value;
+    var question = document.getElementById('question-input').value;
+    var processingMode = document.getElementById('processing-mode').value;
+    var documentId = document.getElementById('document-select').value;
+
+    setAskBusy(true);
 
     fetch('/ask', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question, processing_mode: processingMode, document_id: documentId })
-  })
-  .then(response => response.json())
-  .then(data => {
-        if (data.answer) {
-            displayAnswer(data.answer);
-        } else if (data.error) {
-            displayAnswer(data.error);
-        } else {
-            displayAnswer('No answer received.');
-        }
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question, processing_mode: processingMode, document_id: documentId })
     })
-    .catch(error => {
-        displayAnswer('Error: ' + error);
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+        var text = data.answer || data.error || 'No answer received.';
+        displayAnswer(text, function() { setAskBusy(false); });
+    })
+    .catch(function(error) {
+        displayAnswer('Error: ' + error, function() { setAskBusy(false); });
     });
 });

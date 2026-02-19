@@ -3,8 +3,8 @@
 
 <head>
     <title>AI-Enhanced Revision System</title>
-    <!-- Link to External CSS -->
-    <link rel="stylesheet" type="text/css" href="static/styles.css">
+    <!-- Link to External CSS (cache-bust so deploy updates show) -->
+    <link rel="stylesheet" type="text/css" href="static/styles.css?v=3">
 </head>
 
 <body>
@@ -43,11 +43,13 @@
             </div>
             <input type="text" id="question-input" name="question" placeholder="Enter your question here" required
                 style="width: 80%;">
-            <select id="processing-mode">
+            <label for="processing-mode">Answering method (matches document):</label>
+            <select id="processing-mode" title="Set automatically when you select a document">
                 <option value="simple">Simple</option>
                 <option value="advanced">Advanced</option>
             </select>
             <button type="submit" id="ask-button">Get Answer</button>
+            <span id="ask-loading" class="ask-loading" aria-live="polite" style="display: none;">⏳ Answering…</span>
         </form>
     </div>
 
@@ -59,8 +61,8 @@
         </div>
     </div>
 
-    <!-- Link to External JavaScript -->
-    <script src="static/script_.js"></script>
+    <!-- Link to External JavaScript (cache-bust so deploy updates show) -->
+    <script src="static/script_.js?v=3"></script>
 
 </body>
 
