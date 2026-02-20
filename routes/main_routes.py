@@ -42,15 +42,23 @@ def is_safe_filename(filename):
 class MainRoutes:
     def __init__(self, app):
         self.app = app
+        # Single data directory so all workers (and deploy) use the same files — no cwd confusion.
+        self.data_dir = os.path.abspath(os.environ.get('DATA_DIR', app.root_path))
+        os.makedirs(self.data_dir, exist_ok=True)
+
+        def _p(name):
+            return os.path.join(self.data_dir, name)
+
+        self._p = _p
         self.processed_files = set()
         self.processed_files_advanced = set()
         self.processed_documents = {}
-        self.metadata_file = 'processed_documents.json'
+        self.metadata_file = _p('processed_documents.json')
 
         # Initialize or load id_to_text mapping FIRST
-        if os.path.exists('id_to_text.pkl'):
+        if os.path.exists(_p('id_to_text.pkl')):
             try:
-                with open('id_to_text.pkl', 'rb') as f:
+                with open(_p('id_to_text.pkl'), 'rb') as f:
                     self.id_to_text = pickle.load(f)
             except Exception as e:
                 print('Error loading id_to_text.pkl:', e)
@@ -58,9 +66,9 @@ class MainRoutes:
         else:
             self.id_to_text = {}
 
-        if os.path.exists('id_to_text_advanced.pkl'):
+        if os.path.exists(_p('id_to_text_advanced.pkl')):
             try:
-                with open('id_to_text_advanced.pkl', 'rb') as f:
+                with open(_p('id_to_text_advanced.pkl'), 'rb') as f:
                     self.id_to_text_advanced = pickle.load(f)
             except Exception as e:
                 print('Error loading id_to_text_advanced.pkl:', e)
@@ -72,18 +80,18 @@ class MainRoutes:
         self.vector_ids_advanced = list(self.id_to_text_advanced.keys())
 
         # Vector ID -> document_id for contextual retrieval (which chunks belong to which doc)
-        if os.path.exists('id_to_document_id.pkl'):
+        if os.path.exists(_p('id_to_document_id.pkl')):
             try:
-                with open('id_to_document_id.pkl', 'rb') as f:
+                with open(_p('id_to_document_id.pkl'), 'rb') as f:
                     self.id_to_document_id = pickle.load(f)
             except Exception as e:
                 print('Error loading id_to_document_id.pkl:', e)
                 self.id_to_document_id = {}
         else:
             self.id_to_document_id = {}
-        if os.path.exists('id_to_document_id_advanced.pkl'):
+        if os.path.exists(_p('id_to_document_id_advanced.pkl')):
             try:
-                with open('id_to_document_id_advanced.pkl', 'rb') as f:
+                with open(_p('id_to_document_id_advanced.pkl'), 'rb') as f:
                     self.id_to_document_id_advanced = pickle.load(f)
             except Exception as e:
                 print('Error loading id_to_document_id_advanced.pkl:', e)
@@ -98,9 +106,9 @@ class MainRoutes:
         self._backfill_id_to_document_id_if_needed()
 
         # Initialize or load FAISS index
-        if os.path.exists('faiss_index.index'):
+        if os.path.exists(_p('faiss_index.index')):
             try:
-                self.faiss_index = faiss.read_index('faiss_index.index')
+                self.faiss_index = faiss.read_index(_p('faiss_index.index'))
             except Exception as e:
                 print('Error loading faiss_index.index:', e)
                 self.faiss_index = None
@@ -108,9 +116,9 @@ class MainRoutes:
             self.faiss_index = None
 
         # Advanced embeddings index
-        if os.path.exists('faiss_index_advanced.index'):
+        if os.path.exists(_p('faiss_index_advanced.index')):
             try:
-                self.faiss_index_advanced = faiss.read_index('faiss_index_advanced.index')
+                self.faiss_index_advanced = faiss.read_index(_p('faiss_index_advanced.index'))
             except Exception as e:
                 print(f"Error loading advanced FAISS index: {e}")
                 self.faiss_index_advanced = None
@@ -137,7 +145,7 @@ class MainRoutes:
         Runs at startup (batch); watch server logs for "Backfill..." messages.
         """
         need_backfill = any(
-            id_to_text and not os.path.exists(pkl)
+            id_to_text and not os.path.exists(self._p(pkl))
             for _, id_to_text, _, pkl in [
                 (False, self.id_to_text, self.id_to_document_id, 'id_to_document_id.pkl'),
                 (True, self.id_to_text_advanced, self.id_to_document_id_advanced, 'id_to_document_id_advanced.pkl'),
@@ -150,7 +158,8 @@ class MainRoutes:
             (False, self.id_to_text, self.id_to_document_id, 'id_to_document_id.pkl'),
             (True, self.id_to_text_advanced, self.id_to_document_id_advanced, 'id_to_document_id_advanced.pkl'),
         ]:
-            if not id_to_text or os.path.exists(pkl_file):
+            pkl_path = self._p(pkl_file)
+            if not id_to_text or os.path.exists(pkl_path):
                 continue
             processing = 'advanced' if advanced else 'simple'
             docs_for_mode = [d for d in self.processed_documents.values() if d.get('processing') == processing]
@@ -177,8 +186,10 @@ class MainRoutes:
                         updated += 1
             if updated:
                 try:
-                    with open(pkl_file, 'wb') as f:
+                    with open(pkl_path, 'wb') as f:
                         pickle.dump(id_to_doc, f)
+                        f.flush()
+                        os.fsync(f.fileno())
                     print(f"[Backfill] {processing}: linked {updated} chunk(s) to documents -> {pkl_file}")
                     total_updated += updated
                 except Exception as e:
@@ -190,6 +201,8 @@ class MainRoutes:
         try:
             with open(self.metadata_file, 'w') as f:
                 json.dump(self.processed_documents, f)
+                f.flush()
+                os.fsync(f.fileno())
         except Exception as e:
             print(f"Error saving processed_documents.json: {e}")
 
@@ -688,13 +701,25 @@ class MainRoutes:
             if document_id is not None:
                 id_to_doc[vector_id] = document_id
 
-            # Save the index and mappings
-            faiss.write_index(index, index_file)
-            with open(mapping_file, 'wb') as f:
+            # Save the index and mappings (use data_dir so all workers share the same files)
+            index_path = self._p(index_file)
+            mapping_path = self._p(mapping_file)
+            doc_mapping_path = self._p(doc_mapping_file)
+            faiss.write_index(index, index_path)
+            try:
+                with open(index_path, 'r+b') as f:
+                    os.fsync(f.fileno())
+            except Exception:
+                pass
+            with open(mapping_path, 'wb') as f:
                 pickle.dump(id_to_text, f)
+                f.flush()
+                os.fsync(f.fileno())
             if document_id is not None:
-                with open(doc_mapping_file, 'wb') as f:
+                with open(doc_mapping_path, 'wb') as f:
                     pickle.dump(id_to_doc, f)
+                    f.flush()
+                    os.fsync(f.fileno())
             print(f"Added embedding with ID {vector_id} to {'advanced' if advanced else 'simple'} FAISS index."
                   + (f" document_id={document_id}" if document_id else ""))
         except Exception as e:
@@ -714,6 +739,7 @@ class MainRoutes:
     def update_document(self):
         """Update display_name (or title) for a document so users can set a recognizable label."""
         try:
+            self.load_processed_documents()
             data = request.get_json() or {}
             document_id = data.get('document_id')
             display_name = data.get('display_name', '').strip() or None
@@ -789,45 +815,46 @@ class MainRoutes:
         """Reload FAISS indices and id_to_text / id_to_document_id from disk.
         Ensures any gunicorn worker has the latest chunks so newly uploaded docs are queryable without restart.
         """
-        if os.path.exists('id_to_text.pkl'):
+        if os.path.exists(self._p('id_to_text.pkl')):
             try:
-                with open('id_to_text.pkl', 'rb') as f:
+                with open(self._p('id_to_text.pkl'), 'rb') as f:
                     self.id_to_text = pickle.load(f)
             except Exception as e:
                 print(f"Error reloading id_to_text.pkl: {e}")
-        if os.path.exists('id_to_text_advanced.pkl'):
+        if os.path.exists(self._p('id_to_text_advanced.pkl')):
             try:
-                with open('id_to_text_advanced.pkl', 'rb') as f:
+                with open(self._p('id_to_text_advanced.pkl'), 'rb') as f:
                     self.id_to_text_advanced = pickle.load(f)
             except Exception as e:
                 print(f"Error reloading id_to_text_advanced.pkl: {e}")
-        if os.path.exists('id_to_document_id.pkl'):
+        if os.path.exists(self._p('id_to_document_id.pkl')):
             try:
-                with open('id_to_document_id.pkl', 'rb') as f:
+                with open(self._p('id_to_document_id.pkl'), 'rb') as f:
                     self.id_to_document_id = pickle.load(f)
             except Exception as e:
                 print(f"Error reloading id_to_document_id.pkl: {e}")
-        if os.path.exists('id_to_document_id_advanced.pkl'):
+        if os.path.exists(self._p('id_to_document_id_advanced.pkl')):
             try:
-                with open('id_to_document_id_advanced.pkl', 'rb') as f:
+                with open(self._p('id_to_document_id_advanced.pkl'), 'rb') as f:
                     self.id_to_document_id_advanced = pickle.load(f)
             except Exception as e:
                 print(f"Error reloading id_to_document_id_advanced.pkl: {e}")
-        if os.path.exists('faiss_index.index'):
+        if os.path.exists(self._p('faiss_index.index')):
             try:
-                self.faiss_index = faiss.read_index('faiss_index.index')
+                self.faiss_index = faiss.read_index(self._p('faiss_index.index'))
             except Exception as e:
                 print(f"Error reloading faiss_index.index: {e}")
-        if os.path.exists('faiss_index_advanced.index'):
+        if os.path.exists(self._p('faiss_index_advanced.index')):
             try:
-                self.faiss_index_advanced = faiss.read_index('faiss_index_advanced.index')
+                self.faiss_index_advanced = faiss.read_index(self._p('faiss_index_advanced.index'))
             except Exception as e:
                 print(f"Error reloading faiss_index_advanced.index: {e}")
 
     def load_faiss_index(self, index_file):
-        if os.path.exists(index_file):
+        path = self._p(index_file) if not os.path.isabs(index_file) else index_file
+        if os.path.exists(path):
             try:
-                index = faiss.read_index(index_file)
+                index = faiss.read_index(path)
                 print(f"Loaded FAISS index from {index_file}.")
                 return index
             except Exception as e:
@@ -838,9 +865,10 @@ class MainRoutes:
             return None
 
     def load_id_to_text(self, mapping_file):
-        if os.path.exists(mapping_file):
+        path = self._p(mapping_file) if not os.path.isabs(mapping_file) else mapping_file
+        if os.path.exists(path):
             try:
-                with open(mapping_file, 'rb') as f:
+                with open(path, 'rb') as f:
                     id_to_text = pickle.load(f)
                 print(f"Loaded id_to_text mapping from {mapping_file}.")
                 return id_to_text
