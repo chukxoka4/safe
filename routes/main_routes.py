@@ -328,6 +328,10 @@ class MainRoutes:
             if not (document_id and str(document_id).strip()):
                 return jsonify({'error': 'Please select a document (context) for your question.'}), 400
 
+            # Reload from disk so this worker has latest docs and chunks (multi-worker safe).
+            self.load_processed_documents()
+            self._reload_faiss_and_mappings()
+
             # Document and answering method must match (safety check if frontend is bypassed)
             doc_meta = self.processed_documents.get(document_id)
             if doc_meta and doc_meta.get('processing') != processing_mode:
@@ -781,6 +785,45 @@ class MainRoutes:
         encoding = tiktoken.encoding_for_model('gpt-3.5-turbo')
         return encoding.decode(tokens)
     
+    def _reload_faiss_and_mappings(self):
+        """Reload FAISS indices and id_to_text / id_to_document_id from disk.
+        Ensures any gunicorn worker has the latest chunks so newly uploaded docs are queryable without restart.
+        """
+        if os.path.exists('id_to_text.pkl'):
+            try:
+                with open('id_to_text.pkl', 'rb') as f:
+                    self.id_to_text = pickle.load(f)
+            except Exception as e:
+                print(f"Error reloading id_to_text.pkl: {e}")
+        if os.path.exists('id_to_text_advanced.pkl'):
+            try:
+                with open('id_to_text_advanced.pkl', 'rb') as f:
+                    self.id_to_text_advanced = pickle.load(f)
+            except Exception as e:
+                print(f"Error reloading id_to_text_advanced.pkl: {e}")
+        if os.path.exists('id_to_document_id.pkl'):
+            try:
+                with open('id_to_document_id.pkl', 'rb') as f:
+                    self.id_to_document_id = pickle.load(f)
+            except Exception as e:
+                print(f"Error reloading id_to_document_id.pkl: {e}")
+        if os.path.exists('id_to_document_id_advanced.pkl'):
+            try:
+                with open('id_to_document_id_advanced.pkl', 'rb') as f:
+                    self.id_to_document_id_advanced = pickle.load(f)
+            except Exception as e:
+                print(f"Error reloading id_to_document_id_advanced.pkl: {e}")
+        if os.path.exists('faiss_index.index'):
+            try:
+                self.faiss_index = faiss.read_index('faiss_index.index')
+            except Exception as e:
+                print(f"Error reloading faiss_index.index: {e}")
+        if os.path.exists('faiss_index_advanced.index'):
+            try:
+                self.faiss_index_advanced = faiss.read_index('faiss_index_advanced.index')
+            except Exception as e:
+                print(f"Error reloading faiss_index_advanced.index: {e}")
+
     def load_faiss_index(self, index_file):
         if os.path.exists(index_file):
             try:
