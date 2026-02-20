@@ -25,17 +25,144 @@ function docLabel(doc) {
 
 function setDocumentContextReady(ready, message) {
   const statusEl = document.getElementById('document-context-status');
-  const selectEl = document.getElementById('document-select');
-  if (!statusEl || !selectEl) return;
+  const wrapperEl = document.getElementById('doc-select-wrapper');
+  if (!statusEl || !wrapperEl) return;
   if (ready) {
     statusEl.textContent = '';
     statusEl.style.display = 'none';
-    selectEl.style.display = '';
+    wrapperEl.style.display = '';
   } else {
     statusEl.textContent = message || 'Preparing document context…';
     statusEl.style.display = '';
-    selectEl.style.display = 'none';
+    wrapperEl.style.display = 'none';
   }
+}
+
+var DOC_LABEL_MAX = 60;
+function getDocOptionLabel(doc) {
+  var full = docLabel(doc) + ' (' + doc.date + ') [' + doc.processing + ']';
+  var short = full.length > DOC_LABEL_MAX ? full.slice(0, DOC_LABEL_MAX - 3) + '…' : full;
+  return { full: full, short: short };
+}
+
+function renderDocList(docs) {
+  var listEl = document.getElementById('doc-select-list');
+  var hiddenInput = document.getElementById('document-select');
+  var currentId = hiddenInput && hiddenInput.value ? hiddenInput.value : '';
+  if (!listEl) return;
+  listEl.innerHTML = '';
+  docs.forEach(function(doc) {
+    var labels = getDocOptionLabel(doc);
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'doc-select-option';
+    btn.setAttribute('role', 'option');
+    btn.setAttribute('aria-selected', doc.id === currentId ? 'true' : 'false');
+    btn.setAttribute('data-id', doc.id);
+    btn.setAttribute('data-full-label', labels.full);
+    btn.title = labels.full;
+    btn.textContent = labels.short;
+    listEl.appendChild(btn);
+  });
+}
+
+function filterDocList(searchText) {
+  var listEl = document.getElementById('doc-select-list');
+  if (!listEl) return;
+  var q = (searchText || '').toLowerCase().trim();
+  var opts = listEl.querySelectorAll('.doc-select-option');
+  var visible = 0;
+  opts.forEach(function(opt) {
+    var label = (opt.getAttribute('data-full-label') || opt.textContent || '').toLowerCase();
+    var show = !q || label.indexOf(q) !== -1;
+    opt.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  var noEl = listEl.querySelector('.doc-select-no-results');
+  if (visible === 0 && opts.length) {
+    if (!noEl) {
+      noEl = document.createElement('div');
+      noEl.className = 'doc-select-no-results';
+      noEl.textContent = 'No documents match.';
+      listEl.appendChild(noEl);
+    }
+    noEl.style.display = '';
+  } else if (noEl) noEl.style.display = 'none';
+}
+
+function setDocSelectTriggerText(text) {
+  var trigger = document.getElementById('doc-select-trigger');
+  if (trigger) trigger.textContent = text || '— Select document (context for your question) —';
+}
+
+function openDocSelectPanel() {
+  var panel = document.getElementById('doc-select-panel');
+  var trigger = document.getElementById('doc-select-trigger');
+  if (panel && trigger) {
+    panel.classList.add('is-open');
+    panel.setAttribute('aria-hidden', 'false');
+    trigger.setAttribute('aria-expanded', 'true');
+    var searchEl = document.getElementById('doc-select-search');
+    if (searchEl) { searchEl.value = ''; searchEl.focus(); filterDocList(''); }
+  }
+}
+
+function closeDocSelectPanel() {
+  var panel = document.getElementById('doc-select-panel');
+  var trigger = document.getElementById('doc-select-trigger');
+  if (panel && trigger) {
+    panel.classList.remove('is-open');
+    panel.setAttribute('aria-hidden', 'true');
+    trigger.setAttribute('aria-expanded', 'false');
+  }
+}
+
+function initDocSelect() {
+  var wrapper = document.getElementById('doc-select-wrapper');
+  var trigger = document.getElementById('doc-select-trigger');
+  var panel = document.getElementById('doc-select-panel');
+  var searchEl = document.getElementById('doc-select-search');
+  var listEl = document.getElementById('doc-select-list');
+  var hiddenInput = document.getElementById('document-select');
+  if (!wrapper || !trigger || !panel || !listEl || !hiddenInput) return;
+
+  trigger.addEventListener('click', function(e) {
+    e.preventDefault();
+    if (panel.classList.contains('is-open')) closeDocSelectPanel();
+    else openDocSelectPanel();
+  });
+
+  searchEl && searchEl.addEventListener('input', function() { filterDocList(this.value); });
+  searchEl && searchEl.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') { closeDocSelectPanel(); trigger.focus(); }
+  });
+
+  listEl.addEventListener('click', function(e) {
+    var opt = e.target.closest('.doc-select-option');
+    if (!opt) return;
+    var id = opt.getAttribute('data-id');
+    var fullLabel = opt.getAttribute('data-full-label');
+    hiddenInput.value = id || '';
+    setDocSelectTriggerText(fullLabel);
+    listEl.querySelectorAll('.doc-select-option').forEach(function(o) {
+      o.setAttribute('aria-selected', o.getAttribute('data-id') === id ? 'true' : 'false');
+    });
+    closeDocSelectPanel();
+    updateDisplayNameField();
+    syncProcessingModeToDocument();
+  });
+
+  document.addEventListener('click', function(e) {
+    if (panel.classList.contains('is-open') && !wrapper.contains(e.target))
+      closeDocSelectPanel();
+  });
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && panel.classList.contains('is-open')) {
+      closeDocSelectPanel();
+      trigger.focus();
+    }
+  });
 }
 
 function refreshDocumentDropdown() {
@@ -44,20 +171,17 @@ function refreshDocumentDropdown() {
     .then(res => res.json())
     .then(docs => {
       window._lastDocList = docs;
-      const select = document.getElementById('document-select');
-      const currentValue = select.value;
-      select.innerHTML = '';
-      const placeholder = document.createElement('option');
-      placeholder.value = '';
-      placeholder.textContent = '— Select document (context for your question) —';
-      select.appendChild(placeholder);
-      docs.forEach(doc => {
-        const option = document.createElement('option');
-        option.value = doc.id;
-        option.textContent = `${docLabel(doc)} (${doc.date}) [${doc.processing}]`;
-        select.appendChild(option);
-      });
-      if (currentValue) select.value = currentValue;
+      var hiddenInput = document.getElementById('document-select');
+      var currentValue = hiddenInput ? hiddenInput.value : '';
+      renderDocList(docs);
+      if (currentValue && docs.some(function(d) { return d.id === currentValue; })) {
+        hiddenInput.value = currentValue;
+        var doc = docs.find(function(d) { return d.id === currentValue; });
+        if (doc) setDocSelectTriggerText(getDocOptionLabel(doc).full);
+      } else {
+        hiddenInput.value = '';
+        setDocSelectTriggerText('');
+      }
       updateDisplayNameField();
       syncProcessingModeToDocument();
       setDocumentContextReady(true);
@@ -98,22 +222,8 @@ fetch('/processed_documents')
   .then(res => res.json())
   .then(docs => {
     window._lastDocList = docs;
-    const select = document.getElementById('document-select');
-    select.innerHTML = '';
-    const placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.textContent = '— Select document (context for your question) —';
-    select.appendChild(placeholder);
-    docs.forEach(doc => {
-      const option = document.createElement('option');
-      option.value = doc.id;
-      option.textContent = `${docLabel(doc)} (${doc.date}) [${doc.processing}]`;
-      select.appendChild(option);
-    });
-    select.addEventListener('change', function() {
-      updateDisplayNameField();
-      syncProcessingModeToDocument();
-    });
+    renderDocList(docs);
+    initDocSelect();
     updateDisplayNameField();
     syncProcessingModeToDocument();
     setDocumentContextReady(true);

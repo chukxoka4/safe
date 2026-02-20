@@ -30,26 +30,42 @@
     <!-- Input Section -->
     <div id="input-section">
         <h2>Ask a Question</h2>
+        <p class="ask-intro">Ask questions about your uploaded PDFs. Pick a document, then type your question.</p>
         <form id="question-form" method="post">
-            <label for="document-select">Context (which document to ask from):</label>
-            <p id="document-context-status" class="document-context-status" aria-live="polite">Preparing document context…</p>
-            <select id="document-select" name="document_id" style="display: none;">
-              <!-- Options will be populated by JS -->
-            </select>
-            <div id="document-label-area" style="margin-top: 6px;">
-              <label for="document-display-name">Display name (optional, so you recognize this document):</label>
-              <input type="text" id="document-display-name" placeholder="e.g. Course Notes Unit 1">
-              <button type="button" id="save-display-name">Save name</button>
+            <div class="ask-step ask-step-1">
+                <span class="ask-step-label">Step 1</span>
+                <label for="doc-select-trigger">Select document (context to ask from)</label>
+                <p id="document-context-status" class="document-context-status" aria-live="polite">Preparing document context…</p>
+                <div class="doc-select-wrapper" id="doc-select-wrapper" style="display: none;">
+                  <input type="hidden" id="document-select" name="document_id" value="">
+                  <button type="button" class="doc-select-trigger" id="doc-select-trigger" aria-haspopup="listbox" aria-expanded="false">— Select document (context for your question) —</button>
+                  <div class="doc-select-panel" id="doc-select-panel" role="listbox" aria-hidden="true">
+                    <input type="text" class="doc-select-search" id="doc-select-search" placeholder="Search documents…" aria-label="Search documents" autocomplete="off">
+                    <div class="doc-select-list" id="doc-select-list"></div>
+                  </div>
+                </div>
+                <div id="document-label-area" class="document-label-area">
+                  <label for="document-display-name">Display name (optional)</label>
+                  <input type="text" id="document-display-name" placeholder="e.g. Course Notes Unit 1">
+                  <button type="button" id="save-display-name">Save name</button>
+                </div>
             </div>
-            <input type="text" id="question-input" name="question" placeholder="Enter your question here" required
-                style="width: 80%;">
-            <label for="processing-mode">Answering method (matches document):</label>
-            <select id="processing-mode" title="Set automatically when you select a document">
-                <option value="simple">Simple</option>
-                <option value="advanced">Advanced</option>
-            </select>
-            <button type="submit" id="ask-button">Get Answer</button>
-            <span id="ask-loading" class="ask-loading" aria-live="polite" style="display: none;">⏳ Answering…</span>
+            <div class="ask-step ask-step-2">
+                <span class="ask-step-label">Step 2</span>
+                <label for="question-input">Type your question</label>
+                <textarea id="question-input" name="question" placeholder="Enter your question here (expand as needed)" required
+                    class="question-input-full" rows="4"></textarea>
+            </div>
+            <div class="ask-step ask-step-3">
+                <span class="ask-step-label">Step 3</span>
+                <label for="processing-mode">Answering method (matches document)</label>
+                <select id="processing-mode" title="Set automatically when you select a document">
+                    <option value="simple">Simple</option>
+                    <option value="advanced">Advanced</option>
+                </select>
+                <button type="submit" id="ask-button">Get Answer</button>
+                <span id="ask-loading" class="ask-loading" aria-live="polite" style="display: none;">⏳ Answering…</span>
+            </div>
         </form>
     </div>
 
