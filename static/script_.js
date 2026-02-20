@@ -358,3 +358,34 @@ document.getElementById('question-form').addEventListener('submit', function(e) 
         displayAnswer('Error: ' + error, function() { setAskBusy(false); });
     });
 });
+
+// Theme toggle: dark (default) / light, persisted in localStorage
+(function() {
+  var KEY = 'safe-ai-theme';
+  var root = document.documentElement;
+  var btn = document.getElementById('theme-toggle');
+  if (!btn) return;
+  function applyTheme(theme) {
+    root.setAttribute('data-theme', theme);
+    if (theme === 'light') {
+      btn.textContent = 'Dark';
+      btn.setAttribute('aria-label', 'Switch to dark theme');
+    } else {
+      btn.textContent = 'Light';
+      btn.setAttribute('aria-label', 'Switch to light theme');
+    }
+    try { localStorage.setItem(KEY, theme); } catch (e) {}
+  }
+  function initTheme() {
+    try {
+      var saved = localStorage.getItem(KEY);
+      if (saved === 'light' || saved === 'dark') applyTheme(saved);
+      else applyTheme('dark');
+    } catch (e) { applyTheme('dark'); }
+  }
+  initTheme();
+  btn.addEventListener('click', function() {
+    var next = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+    applyTheme(next);
+  });
+})();
