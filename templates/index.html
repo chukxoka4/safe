@@ -17,15 +17,27 @@
             <!-- Upload -->
             <section id="upload-section" class="card" aria-labelledby="upload-title">
                 <h2 id="upload-title" class="section-title">Upload materials</h2>
-                <p class="section-desc">Add PDF course materials. Choose simple (summary) or advanced (full-text) processing.</p>
+                <p class="section-desc">Add a PDF, then choose how to process it.</p>
                 <form id="upload-form" enctype="multipart/form-data" method="post">
                     <div class="form-group">
                         <label for="file-upload" class="form-label">PDF file</label>
                         <input type="file" id="file-upload" name="file" accept="application/pdf" required>
                     </div>
-                    <div class="btn-group">
-                        <button type="submit" id="upload-button" class="btn btn-primary">Upload and process</button>
-                        <button type="button" id="advanced-button" class="btn btn-secondary">Advanced process</button>
+                    <div class="upload-actions">
+                        <div class="upload-action">
+                            <button type="submit" id="upload-button" class="btn btn-simple">Simple</button>
+                            <span class="info-wrap">
+                                <span class="info-icon" aria-label="What is Simple processing?">ⓘ</span>
+                                <span class="info-tooltip">Summarises the document into one overview. Best for: “What is this about?” Quick and low cost — one embedding per document.</span>
+                            </span>
+                        </div>
+                        <div class="upload-action">
+                            <button type="button" id="advanced-button" class="btn btn-advanced">Advanced</button>
+                            <span class="info-wrap">
+                                <span class="info-icon" aria-label="What is Advanced processing?">ⓘ</span>
+                                <span class="info-tooltip">Keeps the full text in chunks. Best for: detailed questions, quotes, specific facts. More storage — better for in-depth Q&amp;A.</span>
+                            </span>
+                        </div>
                     </div>
                     <div id="progress-bar" aria-hidden="true">
                         <div id="progress-bar-fill"></div>
