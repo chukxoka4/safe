@@ -1,301 +1,619 @@
-/* Dark Theme Styling */
+/* ==========================================================================
+   Premium calm productivity UI — design system
+   Dark theme = default. Light theme = optional via [data-theme="light"].
+   ========================================================================== */
+
+:root,
+[data-theme="dark"] {
+  /* Dark: calm, soft contrast, easy on the eyes */
+  --bg-page: #1a1d21;
+  --bg-card: #25282c;
+  --bg-input: #2d3136;
+  --bg-input-hover: #353a40;
+  --border: #3d4248;
+  --border-focus: #5c9ce6;
+  --text-primary: #e8eaed;
+  --text-secondary: #b8bcc4;
+  --text-muted: #80868b;
+  --accent: #5c9ce6;
+  --accent-hover: #7aaff0;
+  --accent-subtle: rgba(92, 156, 230, 0.15);
+  --success: #5cb85c;
+  --success-bg: rgba(92, 184, 92, 0.2);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+  --space-3xl: 64px;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
+  --transition: 0.2s ease;
+  --focus-ring: 0 0 0 3px rgba(92, 156, 230, 0.35);
+}
+
+[data-theme="light"] {
+  --bg-page: #f5f6f8;
+  --bg-card: #ffffff;
+  --bg-input: #ffffff;
+  --bg-input-hover: #f0f1f3;
+  --border: #e4e6e9;
+  --border-focus: #4dabf7;
+  --text-primary: #1f2328;
+  --text-secondary: #4d5359;
+  --text-muted: #7d848c;
+  --accent: #228be6;
+  --accent-hover: #1c7ed6;
+  --accent-subtle: #e7f5ff;
+  --success: #2f9e44;
+  --success-bg: #d3f9d8;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.1);
+  --focus-ring: 0 0 0 3px rgba(34, 139, 230, 0.25);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+}
+
 body {
-    background-color: #181818; /* Truly dark background */
-    color: #dcdcdc; /* Light text color */
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-sans);
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
 }
 
-h1, h2 {
-    color: #e5e5e5;
-    text-align: center;
+/* ==========================================================================
+   Layout
+   ========================================================================== */
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  margin-bottom: var(--space-2xl);
 }
 
-a {
-    color: #53b1e6; /* Links color */
+.app-header .page-title {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
 }
 
-input, button, select, textarea {
-    background-color: #40414f;
-    color: #dcdcdc;
-    border: 1px solid #565869;
-    border-radius: 5px;
-    padding: 10px;
-    font-size: 16px;
+.theme-toggle {
+  flex-shrink: 0;
+  font-size: 0.8125rem;
+  padding: var(--space-sm) var(--space-md);
 }
 
-input::placeholder {
-    color: #8e8ea0;
+.app {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--space-xl) var(--space-md);
 }
 
-/* Ask section: intro and steps */
+@media (min-width: 640px) {
+  .app {
+    padding: var(--space-2xl) var(--space-lg);
+  }
+}
+
+/* ==========================================================================
+   Typography & hierarchy
+   ========================================================================== */
+
+.page-title {
+  font-size: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  margin: 0 0 var(--space-2xl);
+  text-align: center;
+}
+
+.section-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 var(--space-sm);
+}
+
+.section-desc {
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-lg);
+  line-height: 1.5;
+}
+
+/* ==========================================================================
+   Cards
+   ========================================================================== */
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-xl);
+  margin-bottom: var(--space-lg);
+  transition: box-shadow var(--transition), border-color var(--transition);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.card:last-of-type {
+  margin-bottom: 0;
+}
+
+/* ==========================================================================
+   Forms: labels, inputs, textarea, select
+   ========================================================================== */
+
+.form-group {
+  margin-bottom: var(--space-lg);
+}
+
+.form-group:last-child {
+  margin-bottom: 0;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-sm);
+}
+
+.form-hint {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  margin-top: var(--space-xs);
+}
+
+input[type="text"],
+input[type="file"],
+textarea,
+select,
+.doc-select-trigger,
+.doc-select-search {
+  width: 100%;
+  max-width: 100%;
+  padding: var(--space-md) var(--space-md);
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: border-color var(--transition), background-color var(--transition), box-shadow var(--transition);
+  appearance: none;
+}
+
+input[type="text"]:hover,
+textarea:hover,
+.doc-select-trigger:hover {
+  background: var(--bg-input-hover);
+}
+
+input[type="text"]:focus,
+textarea:focus,
+.doc-select-search:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: var(--focus-ring);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
+}
+
+textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+/* File input: minimal restyle so it doesn’t break */
+input[type="file"] {
+  padding: var(--space-sm);
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+/* ==========================================================================
+   Buttons
+   ========================================================================== */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-sm) var(--space-md);
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.4;
+  border-radius: var(--radius-sm);
+  border: none;
+  cursor: pointer;
+  transition: background-color var(--transition), color var(--transition), box-shadow var(--transition), opacity var(--transition);
+}
+
+.btn:focus {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.btn-secondary {
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--bg-input-hover);
+  color: var(--text-primary);
+}
+
+.btn-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
+
+#upload-button {
+  margin: 0;
+}
+
+#ask-button {
+  min-width: 140px;
+}
+
+/* ==========================================================================
+   Steps (Ask flow)
+   ========================================================================== */
+
 .ask-intro {
-    color: #8e8ea0;
-    font-size: 0.95em;
-    margin: 0 0 20px 0;
-    text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.9375rem;
+  margin: 0 0 var(--space-lg);
+  text-align: center;
 }
 
 .ask-step {
-    display: block;
-    width: 100%;
-    margin-bottom: 24px;
-    padding-left: 12px;
-    border-left: 3px solid #565869;
-    box-sizing: border-box;
+  display: block;
+  width: 100%;
+  margin-bottom: var(--space-xl);
+  padding-left: var(--space-md);
+  border-left: 3px solid var(--border);
+  box-sizing: border-box;
+}
+
+.ask-step:last-child {
+  margin-bottom: 0;
 }
 
 .ask-step-label {
-    display: inline-block;
-    font-weight: bold;
-    color: #53b1e6;
-    font-size: 0.85em;
-    margin-bottom: 6px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  margin-bottom: var(--space-sm);
 }
 
-.ask-step label {
-    display: block;
-    margin-bottom: 4px;
+.ask-step .form-label {
+  margin-bottom: var(--space-sm);
 }
 
 .ask-step-2 .question-input-full,
 #question-input {
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    box-sizing: border-box;
-    min-height: 100px;
-    resize: vertical;
-    font-family: inherit;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 120px;
+  margin: 0;
 }
 
-/* Custom searchable document dropdown */
+/* ==========================================================================
+   Custom document dropdown
+   ========================================================================== */
+
 .doc-select-wrapper {
-    position: relative;
-    width: 100%;
-    max-width: 100%;
-    box-sizing: border-box;
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .doc-select-trigger {
-    width: 100%;
-    max-width: 100%;
-    box-sizing: border-box;
-    text-align: left;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    cursor: pointer;
-    padding: 10px 28px 10px 10px;
-    background-color: #40414f;
-    color: #dcdcdc;
-    border: 1px solid #565869;
-    border-radius: 5px;
-    font-size: 16px;
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238e8ea0' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 10px center;
+  width: 100%;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  padding-right: 36px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23868e96' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
 }
 
 .doc-select-trigger:hover {
-    border-color: #6b6d7e;
+  border-color: var(--border);
+  background-color: var(--bg-input-hover);
 }
 
 .doc-select-panel {
-    display: none;
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    margin-top: 4px;
-    padding: 8px;
-    background-color: #40414f;
-    border: 1px solid #565869;
-    border-radius: 5px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    z-index: 100;
-    box-sizing: border-box;
+  display: none;
+  position: absolute;
+  top: calc(100% + var(--space-sm));
+  left: 0;
+  right: 0;
+  padding: var(--space-sm);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 100;
+  box-sizing: border-box;
 }
 
 .doc-select-panel.is-open {
-    display: block;
+  display: block;
+  animation: panelOpen 0.2s ease;
+}
+
+@keyframes panelOpen {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .doc-select-search {
-    width: 100%;
-    box-sizing: border-box;
-    margin-bottom: 8px;
-    padding: 8px 10px;
+  margin-bottom: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
 }
 
 .doc-select-list {
-    max-height: 220px;
-    overflow-y: auto;
+  max-height: 240px;
+  overflow-y: auto;
+  border-radius: var(--radius-sm);
 }
 
 .doc-select-option {
-    display: block;
-    width: 100%;
-    padding: 8px 10px;
-    text-align: left;
-    background: none;
-    border: none;
-    border-radius: 4px;
-    color: #dcdcdc;
-    font-size: 14px;
-    cursor: pointer;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    box-sizing: border-box;
+  display: block;
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  box-sizing: border-box;
+  transition: background-color var(--transition);
 }
 
 .doc-select-option:hover {
-    background-color: #565869;
+  background: var(--accent-subtle);
 }
 
 .doc-select-option[aria-selected="true"] {
-    background-color: #53b1e6;
-    color: #181818;
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-weight: 500;
 }
 
 .doc-select-no-results {
-    padding: 12px 10px;
-    color: #8e8ea0;
-    font-size: 14px;
+  padding: var(--space-md);
+  color: var(--text-muted);
+  font-size: 0.875rem;
 }
 
 .document-label-area {
-    margin-top: 8px;
+  margin-top: var(--space-md);
+}
+
+.display-name-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.display-name-row input {
+  flex: 1;
+  min-width: 180px;
 }
 
 .document-context-status {
-    color: #8e8ea0;
-    font-size: 0.9em;
-    margin: 4px 0 8px 0;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  margin: var(--space-xs) 0 var(--space-sm);
+}
+
+/* ==========================================================================
+   Processing mode select (read-only feel)
+   ========================================================================== */
+
+#processing-mode {
+  max-width: 100%;
+  cursor: default;
+}
+
+#processing-mode:disabled {
+  opacity: 0.9;
+  background: var(--bg-input-hover);
+}
+
+/* ==========================================================================
+   Answer area & loading
+   ========================================================================== */
+
+.ask-submit-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
 }
 
 .ask-loading {
-    margin-left: 8px;
-    color: #8e8ea0;
-    font-size: 0.9em;
+  color: var(--text-muted);
+  font-size: 0.875rem;
 }
 
-button:disabled {
-    cursor: not-allowed;
-    opacity: 0.7;
-}
-
-button {
-    cursor: pointer;
-    border: none;
-}
-
-button:hover {
-    background-color: #565869;
-}
-
-button:active {
-    background-color: #6b6d7e;
-}
-
-button, #upload-button, #advanced-button, #ask-button {
-    margin-right: 16px;
-    margin-bottom: 16px;
-}
-
-#upload-button, #advanced-button {
-    margin-top: 10px;
-}
-
-/* Centering content */
-#upload-section, #input-section, #answer-section {
-    width: 80%;
-    max-width: 800px;
-    margin: 20px auto; /* Center horizontally */
-    padding: 30px; /* More padding for sections */
-    background-color: #181818; /* Match body background */
-    border: 1px solid #565869;
-    border-radius: 10px;
-}
-
-#upload-section h2, #input-section h2, #answer-section h2 {
-    margin-top: 0;
-}
-
-#progress-bar {
-    width: 100%;
-    background-color: #565869;
-    margin-top: 10px;
-    display: none;
-    border-radius: 10px;
-    overflow: hidden;
-}
-
-#progress-bar-fill {
-    height: 20px;
-    width: 0%;
-    background-color: #10a37f; /* Progress bar color */
-}
-
-#answer-section {
-    margin-top: 30px;
-    padding: 20px;
-    background-color: #181818;
-    border: 1px solid #565869;
-    border-radius: 10px;
+#answer-section .card {
+  min-height: 120px;
 }
 
 #answer {
-    white-space: pre-wrap;
-    font-size: 16px;
-    line-height: 1.5;
+  white-space: pre-wrap;
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  color: var(--text-primary);
 }
 
-#question-input {
-    margin-right: 0;
-    margin-bottom: 0;
+#answer:empty::before {
+  content: "Your answer will appear here.";
+  color: var(--text-muted);
+  font-size: 0.875rem;
 }
 
-#ask-button {
-    width: 100px;
-    padding: 10px;
+/* ==========================================================================
+   Progress bar
+   ========================================================================== */
+
+#progress-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--border);
+  margin-top: var(--space-md);
+  display: none;
+  border-radius: 999px;
+  overflow: hidden;
 }
+
+#progress-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--success);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+/* ==========================================================================
+   Upload section layout
+   ========================================================================== */
 
 #upload-form {
-    gap: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-wrap: wrap;
-}
-
-#question-form {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-md);
 }
 
 #upload-form input[type="file"] {
-    margin-bottom: 10px;
+  margin-bottom: 0;
 }
 
-#upload-button {
-    padding: 10px 20px;
-    margin-top: 10px;
+/* ==========================================================================
+   Question form
+   ========================================================================== */
+
+#question-form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
 }
 
-form {
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+
+@media (max-width: 640px) {
+  .app {
+    padding: var(--space-lg) var(--space-md);
+  }
+
+  .card {
+    padding: var(--space-lg);
+  }
+
+  .page-title {
+    font-size: 1.5rem;
+  }
+
+  #ask-button {
     width: 100%;
+    min-width: 0;
+  }
+
+  .btn-group {
+    flex-direction: column;
+  }
+
+  .btn-group .btn {
+    width: 100%;
+  }
 }
 
-@media (max-width: 600px) {
-    #ask-button {
-        width: 100%;
-    }
+/* ==========================================================================
+   Focus visible (accessibility)
+   ========================================================================== */
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+button:focus:not(:focus-visible),
+input:focus:not(:focus-visible),
+textarea:focus:not(:focus-visible),
+select:focus:not(:focus-visible) {
+  box-shadow: none;
 }

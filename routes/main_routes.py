@@ -697,11 +697,13 @@ class MainRoutes:
             print(f"Error saving embedding or index: {e}")
 
     def get_processed_documents(self):
-        # Return a list of dicts: [{id, title, date, processing, filename, display_name?}]
+        # Reload from disk so all workers (e.g. gunicorn -w 4) return the latest list.
+        # Otherwise the upload worker updates the file but other workers still have stale in-memory data.
+        self.load_processed_documents()
         out = []
         for doc in self.processed_documents.values():
             d = dict(doc)
-            d.setdefault('display_name', None)  # optional user-facing label
+            d.setdefault('display_name', None)
             out.append(d)
         return jsonify(out)
 

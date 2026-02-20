@@ -1,85 +1,99 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en" data-theme="dark">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI-Enhanced Revision System</title>
-    <!-- Link to External CSS (cache-bust so deploy updates show) -->
-    <link rel="stylesheet" type="text/css" href="static/styles.css?v=3">
+    <link rel="stylesheet" href="static/styles.css?v=5">
 </head>
-
 <body>
+    <div class="app">
+        <header class="app-header">
+            <h1 class="page-title">AI-Enhanced Revision System</h1>
+            <button type="button" id="theme-toggle" class="theme-toggle btn btn-secondary" aria-label="Switch to light theme" title="Theme">Light</button>
+        </header>
 
-    <h1>AI-Enhanced Revision System</h1>
+        <main>
+            <!-- Upload -->
+            <section id="upload-section" class="card" aria-labelledby="upload-title">
+                <h2 id="upload-title" class="section-title">Upload materials</h2>
+                <p class="section-desc">Add PDF course materials. Choose simple (summary) or advanced (full-text) processing.</p>
+                <form id="upload-form" enctype="multipart/form-data" method="post">
+                    <div class="form-group">
+                        <label for="file-upload" class="form-label">PDF file</label>
+                        <input type="file" id="file-upload" name="file" accept="application/pdf" required>
+                    </div>
+                    <div class="btn-group">
+                        <button type="submit" id="upload-button" class="btn btn-primary">Upload and process</button>
+                        <button type="button" id="advanced-button" class="btn btn-secondary">Advanced process</button>
+                    </div>
+                    <div id="progress-bar" aria-hidden="true">
+                        <div id="progress-bar-fill"></div>
+                    </div>
+                </form>
+            </section>
 
-    <!-- Upload Section -->
-    <div id="upload-section">
-        <h2>Upload Course Materials (PDF only)</h2>
-        <form id="upload-form" enctype="multipart/form-data" method="post">
-            <input type="file" id="file-upload" name="file" accept="application/pdf" required>
-            <br><br>
-            <button type="submit" id="upload-button">Upload and Process</button>
-            <!-- Advanced Process Button -->
-            <button type="button" id="advanced-button">Advanced Process</button>
-        </form>
-        <!-- Progress Bar -->
-        <div id="progress-bar">
-            <div id="progress-bar-fill"></div>
-        </div>
+            <!-- Ask a question -->
+            <section id="input-section" class="card" aria-labelledby="ask-title">
+                <h2 id="ask-title" class="section-title">Ask a question</h2>
+                <p id="ask-intro" class="ask-intro">Ask questions about your uploaded PDFs. Pick a document, then type your question.</p>
+                <form id="question-form" method="post">
+                    <div class="ask-step ask-step-1">
+                        <span class="ask-step-label" aria-hidden="true">Step 1</span>
+                        <div class="form-group">
+                            <label for="doc-select-trigger" class="form-label">Select document (context to ask from)</label>
+                            <p id="document-context-status" class="document-context-status" aria-live="polite">Preparing document context…</p>
+                            <div class="doc-select-wrapper" id="doc-select-wrapper" style="display: none;">
+                                <input type="hidden" id="document-select" name="document_id" value="">
+                                <button type="button" class="doc-select-trigger" id="doc-select-trigger" aria-haspopup="listbox" aria-expanded="false">— Select document (context for your question) —</button>
+                                <div class="doc-select-panel" id="doc-select-panel" role="listbox" aria-hidden="true">
+                                    <input type="text" class="doc-select-search" id="doc-select-search" placeholder="Search documents…" aria-label="Search documents" autocomplete="off">
+                                    <div class="doc-select-list" id="doc-select-list"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="document-label-area" class="document-label-area form-group">
+                            <label for="document-display-name" class="form-label">Display name (optional)</label>
+                            <div class="display-name-row">
+                                <input type="text" id="document-display-name" placeholder="e.g. Course Notes Unit 1">
+                                <button type="button" id="save-display-name" class="btn btn-secondary">Save name</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ask-step ask-step-2">
+                        <span class="ask-step-label" aria-hidden="true">Step 2</span>
+                        <div class="form-group">
+                            <label for="question-input" class="form-label">Your question</label>
+                            <textarea id="question-input" name="question" class="question-input-full" rows="4" placeholder="Enter your question here (expand as needed)" required></textarea>
+                        </div>
+                    </div>
+
+                    <div class="ask-step ask-step-3">
+                        <span class="ask-step-label" aria-hidden="true">Step 3</span>
+                        <div class="form-group">
+                            <label for="processing-mode" class="form-label">Answering method (matches document)</label>
+                            <select id="processing-mode" title="Set automatically when you select a document">
+                                <option value="simple">Simple</option>
+                                <option value="advanced">Advanced</option>
+                            </select>
+                            <div class="ask-submit-row">
+                                <button type="submit" id="ask-button" class="btn btn-primary">Get answer</button>
+                                <span id="ask-loading" class="ask-loading" aria-live="polite" style="display: none;">Answering…</span>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Answer -->
+            <section id="answer-section" class="card" aria-labelledby="answer-title">
+                <h2 id="answer-title" class="section-title">Answer</h2>
+                <div id="answer" role="region" aria-live="polite"></div>
+            </section>
+        </main>
     </div>
 
-    <!-- Input Section -->
-    <div id="input-section">
-        <h2>Ask a Question</h2>
-        <p class="ask-intro">Ask questions about your uploaded PDFs. Pick a document, then type your question.</p>
-        <form id="question-form" method="post">
-            <div class="ask-step ask-step-1">
-                <span class="ask-step-label">Step 1</span>
-                <label for="doc-select-trigger">Select document (context to ask from)</label>
-                <p id="document-context-status" class="document-context-status" aria-live="polite">Preparing document context…</p>
-                <div class="doc-select-wrapper" id="doc-select-wrapper" style="display: none;">
-                  <input type="hidden" id="document-select" name="document_id" value="">
-                  <button type="button" class="doc-select-trigger" id="doc-select-trigger" aria-haspopup="listbox" aria-expanded="false">— Select document (context for your question) —</button>
-                  <div class="doc-select-panel" id="doc-select-panel" role="listbox" aria-hidden="true">
-                    <input type="text" class="doc-select-search" id="doc-select-search" placeholder="Search documents…" aria-label="Search documents" autocomplete="off">
-                    <div class="doc-select-list" id="doc-select-list"></div>
-                  </div>
-                </div>
-                <div id="document-label-area" class="document-label-area">
-                  <label for="document-display-name">Display name (optional)</label>
-                  <input type="text" id="document-display-name" placeholder="e.g. Course Notes Unit 1">
-                  <button type="button" id="save-display-name">Save name</button>
-                </div>
-            </div>
-            <div class="ask-step ask-step-2">
-                <span class="ask-step-label">Step 2</span>
-                <label for="question-input">Type your question</label>
-                <textarea id="question-input" name="question" placeholder="Enter your question here (expand as needed)" required
-                    class="question-input-full" rows="4"></textarea>
-            </div>
-            <div class="ask-step ask-step-3">
-                <span class="ask-step-label">Step 3</span>
-                <label for="processing-mode">Answering method (matches document)</label>
-                <select id="processing-mode" title="Set automatically when you select a document">
-                    <option value="simple">Simple</option>
-                    <option value="advanced">Advanced</option>
-                </select>
-                <button type="submit" id="ask-button">Get Answer</button>
-                <span id="ask-loading" class="ask-loading" aria-live="polite" style="display: none;">⏳ Answering…</span>
-            </div>
-        </form>
-    </div>
-
-    <!-- Answer Section -->
-    <div id="answer-section">
-        <h2>Answer</h2>
-        <div id="answer">
-            <!-- The AI-generated answer will appear here -->
-        </div>
-    </div>
-
-    <!-- Link to External JavaScript (cache-bust so deploy updates show) -->
-    <script src="static/script_.js?v=3"></script>
-
+    <script src="static/script_.js?v=5"></script>
 </body>
-
 </html>
