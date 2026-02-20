@@ -282,6 +282,31 @@ input[type="file"] {
   background: var(--accent-hover);
 }
 
+/* Simple = blue, Advanced = green */
+.btn-simple {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn-simple:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.btn-advanced {
+  background: var(--success);
+  color: #fff;
+  border: none;
+}
+
+.btn-advanced:hover:not(:disabled) {
+  background: #268f33;
+  color: #fff;
+}
+
+[data-theme="light"] .btn-advanced:hover:not(:disabled) {
+  background: #248f32;
+}
+
 .btn-secondary {
   background: var(--bg-card);
   color: var(--text-secondary);
@@ -298,6 +323,88 @@ input[type="file"] {
   flex-wrap: wrap;
   gap: var(--space-sm);
   margin-top: var(--space-md);
+}
+
+.upload-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+}
+
+.upload-action {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.upload-action .btn {
+  margin: 0;
+}
+
+.info-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.info-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  cursor: help;
+  transition: color var(--transition), border-color var(--transition);
+}
+
+.info-icon:hover {
+  color: var(--text-secondary);
+  border-color: var(--text-muted);
+}
+
+.info-tooltip {
+  visibility: hidden;
+  opacity: 0;
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-left: var(--space-sm);
+  width: 260px;
+  padding: var(--space-md);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--text-primary);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  z-index: 50;
+  pointer-events: none;
+  transition: visibility var(--transition), opacity var(--transition);
+}
+
+.info-wrap:hover .info-tooltip {
+  visibility: visible;
+  opacity: 1;
+}
+
+@media (max-width: 520px) {
+  .info-tooltip {
+    left: 0;
+    top: 100%;
+    margin-left: 0;
+    margin-top: var(--space-sm);
+    transform: none;
+  }
 }
 
 #upload-button {
