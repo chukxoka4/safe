@@ -1,6 +1,10 @@
 # Safe-AI
 
-Minimal instructions to set up, run, test, and safely publish this Flask project.
+Retrieval-augmented question answering over your own PDFs. This is the system I built for my M.Sc. in Information Technology at the National Open University of Nigeria (completed April 2026), under the thesis "AI-Enhanced Revision System for Educational Content Analysis".
+
+You upload a PDF and the app extracts the text, splits it into chunks, embeds each chunk with OpenAI and stores the vectors in a FAISS index, and writes a short summary of the document. You ask a question and it retrieves the closest chunks and answers from them. There are two processing modes with separate indexes, a registry of processed documents, and unit, integration and security tests plus Locust load tests.
+
+The rest of this file is the minimal set of instructions to set up, run, test, and safely publish the project.
 
 ## Repository layout (key files)
 - `app.py` — application entry (FlaskApp)  
@@ -91,3 +95,7 @@ These are listed in `.gitignore` and should NOT be committed:
 
 ## Contact / contribution
 Open issues or pull requests for improvements.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
